@@ -69,7 +69,7 @@ class Context:
         )
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize to a Pi-style JSON-compatible dict."""
+        """Serialize to a JSON-compatible dict."""
         return {
             "systemPrompt": self.system_prompt,
             "messages": [_message_to_dict(m) for m in self.messages],
@@ -86,7 +86,7 @@ class Context:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Context:
-        """Deserialize from a Pi-style dict."""
+        """Deserialize from a dict."""
         return cls(
             messages=[_message_from_dict(m) for m in data.get("messages", [])],
             system_prompt=data.get("systemPrompt"),

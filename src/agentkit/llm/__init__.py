@@ -1,10 +1,11 @@
 """Unified LLM provider abstraction with streaming and tool support."""
 
-from .api import complete, get_provider, list_providers, register_provider, stream
+from .api import complete, get_provider, list_provider_apis, register_provider, stream
 from .context import Context
 from .model import Model, RunOptions
+from .models.presets import OPENAI_COMPATIBLE_BASE_URLS, openai_compatible_model
+from .models.registry import get_model, get_models, list_model_providers, register_model
 from .providers import ModelOptions, Provider
-from .registry import get_model, get_models, get_providers, register_model
 from .streaming import EventType, StreamEvent, StreamResponse
 from .tools import Tool, execute_tool, tool, tool_from_pydantic
 from .types import (
@@ -33,12 +34,14 @@ __all__ = [
     "complete",
     "get_model",
     "get_models",
-    "get_providers",
+    "list_model_providers",
     "register_model",
     "stream",
     "get_provider",
-    "list_providers",
+    "list_provider_apis",
     "register_provider",
+    "OPENAI_COMPATIBLE_BASE_URLS",
+    "openai_compatible_model",
     "AssistantMessage",
     "Cost",
     "Content",
@@ -64,20 +67,4 @@ __all__ = [
     "StreamResponse",
     "ModelOptions",
     "Provider",
-    "AnthropicProvider",
-    "OpenAIProvider",
-    "OpenAIWebSocketSession",
 ]
-
-
-def __getattr__(name: str):
-    provider_exports = {
-        "AnthropicProvider",
-        "OpenAIProvider",
-        "OpenAIWebSocketSession",
-    }
-    if name in provider_exports:
-        from . import providers
-
-        return getattr(providers, name)
-    raise AttributeError(name)

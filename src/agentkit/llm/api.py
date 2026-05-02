@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from .context import Context
 from .model import Model, RunOptions
+from .models.builtins import register_builtin_models
 from .providers.base import ModelOptions
-from .providers.registry import get_provider, list_providers, register_provider
+from .providers.builtins import register_builtin_providers
+from .providers.registry import get_provider, list_provider_apis, register_provider
 from .streaming import StreamResponse
 from .types import Response
 
@@ -44,10 +46,13 @@ def stream(model: Model, context: Context, options: RunOptions | None = None) ->
     return provider.stream(context, _options(model, context, options))
 
 
+register_builtin_models()
+register_builtin_providers()
+
 __all__ = [
     "complete",
     "stream",
     "get_provider",
-    "list_providers",
+    "list_provider_apis",
     "register_provider",
 ]

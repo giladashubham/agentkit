@@ -18,8 +18,29 @@ __all__ = [
     "RunOptions",
 ]
 
-ProviderName = Literal["anthropic", "openai", "google"]
-ApiName = Literal["anthropic-messages", "openai-completions", "openai-responses", "google-genai"]
+ProviderName = Literal[
+    "anthropic",
+    "openai",
+    "google",
+    "deepseek",
+    "groq",
+    "openrouter",
+    "xai",
+    "fireworks",
+    "together",
+    "ollama",
+    "perplexity",
+    "cerebras",
+    "sambanova",
+    "nebius",
+]
+ApiName = Literal[
+    "anthropic-messages",
+    "openai-completions",
+    "openai-responses",
+    "google-generative-ai",
+    "google-vertex",
+]
 ReasoningLevel = Literal["minimal", "low", "medium", "high", "xhigh"]
 Transport = Literal["sse", "websocket", "websocket-cached", "auto"]
 PayloadHook = Callable[[dict[str, Any], Any], dict[str, Any] | None]

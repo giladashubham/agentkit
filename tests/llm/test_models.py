@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from agentkit.llm import Model, get_model, get_models, get_providers, register_model
-from agentkit.llm.registry import clear_models, register_builtin_models
+from agentkit.llm import Model, get_model, get_models, list_model_providers, register_model
+from agentkit.llm.models.builtins import register_builtin_models
+from agentkit.llm.models.registry import clear_models
 
 
 @pytest.fixture(autouse=True)
@@ -21,7 +22,7 @@ def test_register_and_get_model() -> None:
 
     assert get_model("custom", "custom-model") == model
     assert get_models("custom") == [model]
-    assert get_providers() == ["custom"]
+    assert list_model_providers() == ["custom"]
 
 
 def test_get_unknown_model_raises() -> None:

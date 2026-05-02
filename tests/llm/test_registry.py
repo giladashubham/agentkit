@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from agentkit.llm import Context, Model, Response, StopReason, Usage, complete, list_providers
+from agentkit.llm import Context, Model, Response, StopReason, Usage, complete, list_provider_apis
 from agentkit.llm.providers.base import ModelOptions, Provider
-from agentkit.llm.providers.registry import (
-    clear_providers,
-    register_builtin_providers,
-    register_provider,
-)
+from agentkit.llm.providers.builtins import register_builtin_providers
+from agentkit.llm.providers.registry import clear_providers, register_provider
 from agentkit.llm.streaming import StreamResponse
 
 
@@ -48,7 +45,7 @@ async def test_register_custom_provider_factory() -> None:
 
     assert response.text() == "hello"
     assert response.model == "dummy-model"
-    assert list_providers() == ["dummy"]
+    assert list_provider_apis() == ["dummy"]
 
 
 def test_unknown_provider_lists_available_providers() -> None:

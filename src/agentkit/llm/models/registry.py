@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .model import Model
+from ..model import Model
 
 __all__ = [
     "register_model",
     "get_model",
     "get_models",
-    "get_providers",
+    "list_model_providers",
     "clear_models",
-    "register_builtin_models",
 ]
 
 _models: dict[str, dict[str, Model]] = defaultdict(dict)
@@ -34,26 +33,11 @@ def get_models(provider: str) -> list[Model]:
     return list(_models.get(provider, {}).values())
 
 
-def get_providers() -> list[str]:
+def list_model_providers() -> list[str]:
     """List providers with registered models."""
     return sorted(_models)
 
 
 def clear_models() -> None:
-    """Clear model registry. Primarily useful for tests."""
+    """Clear registered models. Primarily useful for tests."""
     _models.clear()
-
-
-def register_builtin_models() -> None:
-    """Register a small built-in model set.
-
-    This is intentionally tiny, not generated. Users can register their own models.
-    """
-    register_model(Model(provider="openai", api="openai-completions", id="gpt-4o-mini"))
-    register_model(Model(provider="openai", api="openai-completions", id="gpt-4o"))
-    register_model(
-        Model(provider="anthropic", api="anthropic-messages", id="claude-sonnet-4-20250514")
-    )
-
-
-register_builtin_models()
