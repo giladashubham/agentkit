@@ -1,0 +1,62 @@
+[project]
+name = "agentkit"
+version = "0.1.0"
+description = "Simple, extensible LLM and agent loop toolkit"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Shubham", email = "gilada.shubham@gmail.com" }]
+keywords = ["llm", "ai", "agents", "anthropic", "openai", "streaming", "tools"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.13.3",
+    "httpx>=0.28.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/giladashubham/agentkit"
+Repository = "https://github.com/giladashubham/agentkit"
+"Bug Tracker" = "https://github.com/giladashubham/agentkit/issues"
+
+[project.optional-dependencies]
+openai = ["openai[realtime]>=2.33.0"]
+anthropic = ["anthropic>=0.97.0"]
+google = ["google-genai>=1.74.0"]
+all = [
+    "openai[realtime]>=2.33.0",
+    "anthropic>=0.97.0",
+    "google-genai>=1.74.0",
+]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.15.12",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agentkit"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
