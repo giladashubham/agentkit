@@ -54,9 +54,39 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+## API keys
+
+Provider factories use `Model.api_key` when supplied. If it is omitted, AgentKit looks
+for a provider-specific environment variable:
+
+| Provider | Environment variable |
+|---|---|
+| `openai` | `OPENAI_API_KEY` |
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `google` | `GEMINI_API_KEY` or `GOOGLE_API_KEY` |
+| `google-vertex` | `GOOGLE_CLOUD_API_KEY` |
+| `deepseek` | `DEEPSEEK_API_KEY` |
+| `groq` | `GROQ_API_KEY` |
+| `openrouter` | `OPENROUTER_API_KEY` |
+| `xai` | `XAI_API_KEY` |
+| `fireworks` | `FIREWORKS_API_KEY` |
+| `together` | `TOGETHER_API_KEY` |
+| `perplexity` | `PERPLEXITY_API_KEY` |
+| `cerebras` | `CEREBRAS_API_KEY` |
+| `sambanova` | `SAMBANOVA_API_KEY` |
+| `nebius` | `NEBIUS_API_KEY` |
+
+You can inspect the resolved key with:
+
+```python
+from agentkit.llm import get_env_api_key
+
+key = get_env_api_key("openrouter")
+```
+
 ## Supported providers and models
 
-AgentKit has a small built-in provider registry and a lightweight model registry. It does **not** try to ship a generated database of every model from every vendor.
+AgentKit has a small built-in provider registry and a curated model catalog with static metadata such as context window, max output tokens, input types, reasoning support, and best-effort token pricing. It does **not** try to ship every model from every vendor.
 
 ### Built-in API providers
 
@@ -85,7 +115,28 @@ AgentKit has a small built-in provider registry and a lightweight model registry
 | `google` | `gemini-2.5-flash`, `gemini-2.5-pro` |
 | `google-vertex` | `gemini-2.5-flash`, `gemini-2.5-pro` |
 
-Use `get_model(provider, model_id)` for built-ins, or construct `Model(...)` directly for any model ID supported by the underlying provider.
+Use `get_model(provider, model_id)` for built-ins, or construct `Model(...)` directly for any model ID supported by the underlying provider. Built-in model metadata is intentionally curated and can be overridden by registering your own `Model`. OpenAI built-in model entries default to the Responses API; construct `Model(api="openai-completions", ...)` directly when you want Chat Completions.
+
+### Cost tracking
+
+Model pricing is represented by `ModelCost` in USD per 1M tokens. `complete(...)` and
+`stream(...).result()` calculate `response.usage.cost` when a model has pricing metadata:
+
+```python
+from agentkit.llm import Model, ModelCost, Usage, calculate_cost
+
+model = Model(
+    provider="custom",
+    api="custom-api",
+    id="custom-model",
+    cost=ModelCost(input=1.00, output=2.00, cache_read=0.25, cache_write=1.25),
+)
+usage = Usage(input=1000, output=500)
+calculate_cost(model, usage)
+print(usage.cost.total)
+```
+
+Unknown prices default to zero.
 
 ### OpenAI-compatible preset providers
 
@@ -275,6 +326,12 @@ event.partial        # partial assistant message state
 event.content_index  # content block index for content events
 ```
 
+Stream errors are finalized consistently. If a provider emits an `error` event or the
+underlying stream raises, `await s.result()` returns a `Response` whose
+`stop_reason` is `StopReason.ERROR` or `StopReason.ABORTED`. The original exception
+is available on `response.raw`, and the error event still carries the exception in
+`event.data`.
+
 ## Tools live on context
 
 ```python
@@ -299,6 +356,21 @@ response = await complete(model, context)
 for call in response.tool_calls():
     print(call.name, call.arguments)
 ```
+
+Tools created with `@tool()` or `tool_from_pydantic()` keep a Pydantic argument model.
+Use `execute_tool()` to validate, coerce, and call the Python function:
+
+```python
+from agentkit.llm import execute_tool, validate_tool_arguments
+
+for call in response.tool_calls():
+    args = validate_tool_arguments(get_weather, call.arguments)
+    result = await execute_tool(get_weather, args)
+```
+
+`execute_tool()` validates by default. Pass `validate=False` to call the function with
+raw arguments. Tools created from raw JSON schema without a Pydantic model return
+arguments unchanged from `validate_tool_arguments()`.
 
 ## Reasoning
 
@@ -341,6 +413,21 @@ Tool results use a dedicated role so an agent loop can append them cleanly:
 context.add_message(response.message)
 context.add_tool_result(tool_call_id="call_123", tool_name="search", content="Tool output")
 ```
+
+Assistant messages returned by `complete(...)` and `stream(...).result()` preserve response
+metadata for replay/debugging when appended to a context:
+
+```python
+response.message.provider       # e.g. "openai"
+response.message.api            # e.g. "openai-responses"
+response.message.model          # requested model id
+response.message.response_model # concrete upstream model, when different
+response.message.response_id    # provider response id, when available
+response.message.usage          # serialized usage snapshot
+response.message.stop_reason    # serialized stop reason
+```
+
+This metadata is included in `Context.to_dict()` and restored by `Context.from_dict()`.
 
 Stop reasons are intentionally small:
 
