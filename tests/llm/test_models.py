@@ -13,7 +13,7 @@ from agentkit.llm import (
     register_model,
 )
 from agentkit.llm.models.builtins import register_builtin_models
-from agentkit.llm.models.catalog import iter_builtin_models
+from agentkit.llm.models.generated import iter_builtin_models
 from agentkit.llm.models.registry import clear_models
 
 
@@ -57,6 +57,12 @@ def test_builtin_catalog_has_unique_provider_model_ids() -> None:
     keys = [(model.provider, model.id) for model in iter_builtin_models()]
 
     assert len(keys) == len(set(keys))
+
+
+def test_generated_catalog_has_breadth_for_large_providers() -> None:
+    assert len(get_models("openai")) > 30
+    assert len(get_models("google")) > 20
+    assert len(get_models("anthropic")) > 10
 
 
 def test_calculate_cost_updates_usage_cost() -> None:

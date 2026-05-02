@@ -1,0 +1,117 @@
+{
+  "provider_defaults": {
+    "openai": {
+      "api": "openai-responses",
+      "base_url": "https://api.openai.com/v1"
+    },
+    "anthropic": {
+      "api": "anthropic-messages",
+      "base_url": "https://api.anthropic.com"
+    },
+    "google": {
+      "api": "google-generative-ai",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta"
+    },
+    "deepseek": {
+      "api": "openai-completions",
+      "base_url": "https://api.deepseek.com"
+    },
+    "groq": {
+      "api": "openai-completions",
+      "base_url": "https://api.groq.com/openai/v1"
+    },
+    "openrouter": {
+      "api": "openai-completions",
+      "base_url": "https://openrouter.ai/api/v1"
+    },
+    "xai": {
+      "api": "openai-completions",
+      "base_url": "https://api.x.ai/v1"
+    },
+    "cerebras": {
+      "api": "openai-completions",
+      "base_url": "https://api.cerebras.ai/v1"
+    },
+    "perplexity": {
+      "api": "openai-completions",
+      "base_url": "https://api.perplexity.ai"
+    },
+    "nebius": {
+      "api": "openai-completions",
+      "base_url": "https://api.studio.nebius.ai/v1"
+    }
+  },
+  "include_providers": [
+    "anthropic",
+    "cerebras",
+    "deepseek",
+    "google",
+    "groq",
+    "nebius",
+    "openai",
+    "perplexity",
+    "xai"
+  ],
+  "mirror_google_to_vertex": true,
+  "patches": [
+    {
+      "provider": "anthropic",
+      "id": "claude-sonnet-4-20250514",
+      "set": {
+        "name": "Claude Sonnet 4",
+        "context_window": 200000,
+        "max_tokens": 64000,
+        "input_types": ["text", "image"],
+        "reasoning": true,
+        "cost": {
+          "input": 3.0,
+          "output": 15.0,
+          "cache_read": 0.3,
+          "cache_write": 3.75
+        }
+      }
+    }
+  ],
+  "static_models": [
+    {
+      "provider": "fireworks",
+      "api": "openai-completions",
+      "id": "accounts/fireworks/models/llama-v3p1-70b-instruct",
+      "name": "Llama 3.1 70B Instruct",
+      "base_url": "https://api.fireworks.ai/inference/v1",
+      "context_window": 128000,
+      "max_tokens": 16384,
+      "input_types": ["text"]
+    },
+    {
+      "provider": "together",
+      "api": "openai-completions",
+      "id": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+      "name": "Llama 3.3 70B Instruct Turbo",
+      "base_url": "https://api.together.xyz/v1",
+      "context_window": 128000,
+      "max_tokens": 16384,
+      "input_types": ["text"]
+    },
+    {
+      "provider": "ollama",
+      "api": "openai-completions",
+      "id": "llama3.2",
+      "name": "Llama 3.2",
+      "base_url": "http://localhost:11434/v1",
+      "context_window": 128000,
+      "max_tokens": 8192,
+      "input_types": ["text"]
+    },
+    {
+      "provider": "sambanova",
+      "api": "openai-completions",
+      "id": "Meta-Llama-3.1-70B-Instruct",
+      "name": "Meta Llama 3.1 70B Instruct",
+      "base_url": "https://api.sambanova.ai/v1",
+      "context_window": 128000,
+      "max_tokens": 8192,
+      "input_types": ["text"]
+    }
+  ]
+}

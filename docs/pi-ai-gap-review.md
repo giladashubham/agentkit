@@ -18,7 +18,7 @@ However, AgentKit is not yet at Pi AI's production maturity level. Pi AI has sig
 | Package structure | Python `src/` layout | Mature TS package layout | Good |
 | Provider isolation | Provider packages under `llm/providers` | Strong provider isolation | Good |
 | Optional deps | Provider extras | SDK deps bundled | AgentKit advantage |
-| Model registry | Curated metadata catalog | Generated model DB | Done |
+| Model registry | Generated metadata catalog | Generated model DB | Done |
 | Cost tracking | ModelCost + automatic calculation | Full cost calculation | Done |
 | Env API keys | Provider-specific env resolver | Provider-specific env resolver | Done |
 | Streaming | Basic event support | Robust final/error event contract | Done |
@@ -94,17 +94,19 @@ Option B: error events carry a final `Response` with `StopReason.ERROR` or `Stop
 
 ---
 
-### 3. Curated model catalog
+### 3. Generated model catalog
 
-**Why:** Pi AI stores model metadata in a structured model database. AgentKit now uses a curated Python catalog with model identity, context window, max output tokens, input types, reasoning support, and best-effort pricing.
+**Why:** Pi AI stores model metadata in a generated structured catalog. AgentKit now uses a maintainer-time generator that combines remote provider metadata with explicit local overrides, then writes a committed Python catalog.
 
 **Acceptance criteria:**
 
-- [x] Add static model catalog module.
-- [x] Register built-ins from catalog data instead of one-off registration calls.
+- [x] Add generated model catalog module.
+- [x] Register built-ins from generated catalog data instead of one-off registration calls.
 - [x] Include context window, max tokens, input types, reasoning support, and cost metadata.
 - [x] Preserve custom `register_model(...)` support.
 - [x] Tests cover built-in metadata.
+- [x] Add local override data file for manual corrections/static models.
+- [x] Add maintainer-time generation script and freshness check.
 
 ---
 
@@ -130,7 +132,7 @@ usage = calculate_cost(model, usage)
 
 ---
 
-### 4. Assistant response metadata preservation
+### 5. Assistant response metadata preservation
 
 **Why:** In AgentKit, `Response` has model/usage/stop metadata, but `response.message` loses most of that when appended to `Context`. Pi AI assistant messages carry provider, API, model, usage, stop reason, response ID, etc.
 
@@ -252,15 +254,15 @@ Pi AI supports OAuth-heavy providers such as GitHub Copilot and OpenAI Codex. Th
 
 ### Generated model database
 
-Pi AI generates model metadata. AgentKit now has a curated Pi-style catalog, but it is not generated from upstream provider data.
+Pi AI generates model metadata. AgentKit now does this too at maintainer/release time: `scripts/generate_models.py` fetches remote metadata, applies `data/model_overrides.json`, and writes committed `src/agentkit/llm/models/generated.py`.
 
-**Recommendation:** keep the curated catalog for now. Consider generation only if maintaining model metadata manually becomes painful.
+**Recommendation:** keep generation as an explicit maintainer action, not an install-time step.
 
 ## Suggested Execution Order
 
 1. Provider env API key resolver. Done.
 2. Stream error finalization contract. Done.
-3. Curated model catalog and cost calculation. Done.
+3. Generated model catalog and cost calculation. Done.
 4. Assistant metadata preservation. Done.
 5. Tool argument validation. Done.
 6. Faux provider.
