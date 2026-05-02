@@ -52,7 +52,7 @@ class OpenAIProvider(Provider):
         return parse_response(response, options.model)
 
     def stream(self, context: Context, options: ModelOptions) -> StreamResponse:
-        return StreamResponse(self._stream_events(context, options))
+        return StreamResponse(self._stream_events(context, options), model_ref=options.model_ref)
 
     async def _stream_events(
         self,

@@ -98,7 +98,10 @@ class OpenAIWebSocketSession:
             extra=dict(self._options.extra),
         )
         system = context.system_prompt or self._system
-        return StreamResponse(self._stream_one_turn(context, opts, system))
+        return StreamResponse(
+            self._stream_one_turn(context, opts, system),
+            model_ref=opts.model_ref,
+        )
 
     async def _stream_one_turn(
         self,

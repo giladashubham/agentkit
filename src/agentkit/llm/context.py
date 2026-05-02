@@ -124,11 +124,13 @@ def _message_to_dict(message: Message) -> dict[str, Any]:
     else:
         serialized_content = [_content_to_dict(c) for c in message.content]
 
-    return {
+    data = {
         "role": message.role.value,
         "content": serialized_content,
         "timestamp": message.timestamp,
     }
+    data.update(_message_metadata_to_dict(message))
+    return data
 
 
 def _message_from_dict(data: dict[str, Any]) -> Message:
@@ -149,7 +151,11 @@ def _message_from_dict(data: dict[str, Any]) -> Message:
     if role == Role.ASSISTANT:
         content = data.get("content", [])
         if isinstance(content, str):
-            return AssistantMessage(content=[TextContent(text=content)], timestamp=timestamp)
+            return AssistantMessage(
+                content=[TextContent(text=content)],
+                timestamp=timestamp,
+                **_message_metadata_from_dict(data),
+            )
         return AssistantMessage(
             content=[
                 c
@@ -157,6 +163,7 @@ def _message_from_dict(data: dict[str, Any]) -> Message:
                 if isinstance(c, (TextContent, ThinkingContent, ToolCall))
             ],
             timestamp=timestamp,
+            **_message_metadata_from_dict(data),
         )
 
     if role == Role.TOOL_RESULT:
@@ -174,6 +181,42 @@ def _message_from_dict(data: dict[str, Any]) -> Message:
         )
 
     raise ValueError(f"Unknown message role: {role}")
+
+
+def _message_metadata_to_dict(message: Message) -> dict[str, Any]:
+    metadata = message.model_dump(
+        mode="json",
+        by_alias=True,
+        include={
+            "provider",
+            "api",
+            "model",
+            "response_model",
+            "response_id",
+            "usage",
+            "stop_reason",
+            "error_message",
+        },
+        exclude_none=True,
+    )
+    return metadata
+
+
+def _message_metadata_from_dict(data: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: data[key]
+        for key in (
+            "provider",
+            "api",
+            "model",
+            "responseModel",
+            "responseId",
+            "usage",
+            "stopReason",
+            "errorMessage",
+        )
+        if key in data
+    }
 
 
 def _content_to_dict(content: Content) -> dict[str, Any]:

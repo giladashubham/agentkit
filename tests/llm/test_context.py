@@ -1,6 +1,14 @@
 from __future__ import annotations
 
-from agentkit.llm import Context, Message, Role, ThinkingContent, ToolCall
+from agentkit.llm import (
+    AssistantMessage,
+    Context,
+    Message,
+    Role,
+    TextContent,
+    ThinkingContent,
+    ToolCall,
+)
 
 
 def test_context_round_trip_preserves_messages_system_and_metadata() -> None:
@@ -55,3 +63,29 @@ def test_context_clear_removes_messages_only() -> None:
     assert ctx.messages == []
     assert ctx.system_prompt == "system"
     assert ctx.metadata == {"key": "value"}
+
+
+def test_context_round_trip_preserves_assistant_response_metadata() -> None:
+    ctx = Context(messages=[
+        AssistantMessage(
+            content=[TextContent(text="hello")],
+            provider="openai",
+            api="openai-responses",
+            model="gpt-4o-mini",
+            response_model="gpt-4o-mini-2024-07-18",
+            response_id="resp_123",
+            usage={"input": 10, "output": 5},
+            stop_reason="stop",
+        )
+    ])
+
+    data = ctx.to_dict()
+    restored = Context.from_dict(data)
+
+    assert data["messages"][0]["provider"] == "openai"
+    assert data["messages"][0]["responseModel"] == "gpt-4o-mini-2024-07-18"
+    assert data["messages"][0]["responseId"] == "resp_123"
+    assert data["messages"][0]["stopReason"] == "stop"
+    assert restored.messages[0].provider == "openai"
+    assert restored.messages[0].response_model == "gpt-4o-mini-2024-07-18"
+    assert restored.to_dict() == data

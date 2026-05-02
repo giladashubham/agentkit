@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from enum import StrEnum
 from time import time
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .content import Content, ImageContent, TextContent, ThinkingContent, ToolCall, ToolResult
 
@@ -18,9 +18,35 @@ class Role(StrEnum):
 
 
 class Message(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     role: Role
     content: list[Content]
     timestamp: float = Field(default_factory=time)
+    provider: str | None = None
+    api: str | None = None
+    model: str | None = None
+    response_model: str | None = Field(
+        default=None,
+        alias="responseModel",
+        serialization_alias="responseModel",
+    )
+    response_id: str | None = Field(
+        default=None,
+        alias="responseId",
+        serialization_alias="responseId",
+    )
+    usage: dict[str, Any] | None = None
+    stop_reason: str | None = Field(
+        default=None,
+        alias="stopReason",
+        serialization_alias="stopReason",
+    )
+    error_message: str | None = Field(
+        default=None,
+        alias="errorMessage",
+        serialization_alias="errorMessage",
+    )
 
     @classmethod
     def user(cls, text: str) -> UserMessage:
