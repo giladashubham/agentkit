@@ -1,0 +1,88 @@
+from __future__ import annotations
+
+import pytest
+from pydantic import BaseModel
+
+from agentkit.llm import Tool, execute_tool, tool, tool_from_pydantic
+
+
+def test_tool_decorator_generates_json_schema() -> None:
+    @tool(description="Get the weather")
+    def get_weather(city: str, unit: str = "celsius") -> str:
+        """Get weather for a city."""
+        return f"Weather in {city}"
+
+    assert get_weather.name == "get_weather"
+    assert get_weather.description == "Get the weather"
+    assert get_weather.parameters == {
+        "properties": {
+            "city": {"title": "City", "type": "string"},
+            "unit": {"default": "celsius", "title": "Unit", "type": "string"},
+        },
+        "required": ["city"],
+        "type": "object",
+    }
+
+
+def test_tool_decorator_uses_docstring_description() -> None:
+    @tool()
+    def search(query: str) -> str:
+        """Search the web."""
+        return "results"
+
+    assert search.description == "Search the web."
+
+
+def test_tool_from_pydantic_model() -> None:
+    class SearchParams(BaseModel):
+        """Search parameters."""
+
+        query: str
+        max_results: int = 5
+
+    search = tool_from_pydantic(SearchParams, name="search")
+
+    assert search.name == "search"
+    assert search.description == "Search parameters."
+    assert search.parameters["required"] == ["query"]
+    assert search.parameters["properties"]["max_results"]["default"] == 5
+
+
+def test_tool_to_anthropic_shape(search_tool: Tool) -> None:
+    assert search_tool.to_anthropic() == {
+        "name": "search",
+        "description": "Search the web for information.",
+        "input_schema": search_tool.parameters,
+    }
+
+
+def test_tool_to_openai_shape(search_tool: Tool) -> None:
+    assert search_tool.to_openai() == {
+        "type": "function",
+        "function": {
+            "name": "search",
+            "description": "Search the web for information.",
+            "parameters": search_tool.parameters,
+        },
+    }
+
+
+async def test_execute_sync_tool(search_tool: Tool) -> None:
+    result = await execute_tool(search_tool, {"query": "python", "max_results": 3})
+
+    assert result == "results for python"
+
+
+async def test_execute_async_tool() -> None:
+    @tool()
+    async def uppercase(text: str) -> str:
+        return text.upper()
+
+    assert await execute_tool(uppercase, {"text": "hello"}) == "HELLO"
+
+
+async def test_execute_tool_without_callable_raises() -> None:
+    external_tool = Tool(name="external", description="", parameters={"type": "object"})
+
+    with pytest.raises(ValueError, match="Tool external has no callable function"):
+        await execute_tool(external_tool, {})
