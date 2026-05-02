@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, get_type_hints
 
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, ValidationError, create_model
 
-__all__ = ["Tool", "tool", "tool_from_pydantic", "execute_tool"]
+from agentkit.exceptions import ToolValidationError
+
+__all__ = ["Tool", "tool", "tool_from_pydantic", "validate_tool_arguments", "execute_tool"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,6 +18,7 @@ class Tool:
     description: str
     parameters: dict[str, Any]  # JSON Schema
     func: Callable[..., Any] | Callable[..., Awaitable[Any]] | None = None
+    args_model: type[BaseModel] | None = field(default=None, repr=False, compare=False)
 
     def to_anthropic(self) -> dict[str, Any]:
         return {
@@ -58,18 +61,16 @@ def tool(
 
             fields[param_name] = (annotation, default)
 
-        if fields:
-            model = create_model(f"{func_name}_params", **fields)
-            schema = model.model_json_schema()
-            schema.pop("title", None)
-        else:
-            schema = {"type": "object", "properties": {}}
+        model = create_model(f"{func_name}_params", **fields)
+        schema = model.model_json_schema()
+        schema.pop("title", None)
 
         return Tool(
             name=func_name,
             description=func_description.strip(),
             parameters=schema,
             func=func,
+            args_model=model,
         )
 
     return decorator
@@ -90,14 +91,36 @@ def tool_from_pydantic(
         description=description or model.__doc__ or "",
         parameters=schema,
         func=func,
+        args_model=model,
     )
 
 
-async def execute_tool(tool: Tool, arguments: dict[str, Any]) -> Any:
-    """Execute a tool with the given arguments."""
+def validate_tool_arguments(tool: Tool, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Validate and coerce tool-call arguments using the tool's Pydantic model.
+
+    Tools created from raw JSON schema without an associated Pydantic model return
+    arguments unchanged because runtime validation is not available.
+    """
+    if tool.args_model is None:
+        return arguments
+    try:
+        validated = tool.args_model.model_validate(arguments)
+    except ValidationError as exc:
+        raise ToolValidationError(tool.name, exc) from exc
+    return validated.model_dump()
+
+
+async def execute_tool(tool: Tool, arguments: dict[str, Any], *, validate: bool = True) -> Any:
+    """Execute a tool with the given arguments.
+
+    By default, arguments are validated and coerced for tools created with
+    `@tool()` or `tool_from_pydantic()`. Pass `validate=False` to execute raw
+    arguments directly.
+    """
     if tool.func is None:
         raise ValueError(f"Tool {tool.name} has no callable function")
 
+    call_arguments = validate_tool_arguments(tool, arguments) if validate else arguments
     if inspect.iscoroutinefunction(tool.func):
-        return await tool.func(**arguments)
-    return tool.func(**arguments)
+        return await tool.func(**call_arguments)
+    return tool.func(**call_arguments)
