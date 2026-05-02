@@ -4,7 +4,8 @@ import json
 from typing import Any
 
 from ...context import Context
-from ...types import Content, Message, Role, TextContent, ToolCall, ToolResult
+from ...types import Content, ImageContent, Message, Role, TextContent, ToolCall, ToolResult
+from .._utils import timeout_seconds
 from ..base import ModelOptions
 
 __all__ = ["build_request", "convert_messages", "convert_content"]
@@ -53,7 +54,7 @@ def build_request(context: Context, options: ModelOptions) -> dict[str, Any]:
         request["reasoning_effort"] = options.reasoning
 
     if options.timeout_ms is not None:
-        request["timeout"] = options.timeout_ms
+        request["timeout"] = timeout_seconds(options.timeout_ms)
 
     if options.headers:
         request["extra_headers"] = options.headers
@@ -113,4 +114,9 @@ def convert_content(content: list[Content]) -> str | list[dict[str, Any]]:
     for c in content:
         if isinstance(c, TextContent):
             result.append({"type": "text", "text": c.text})
+        elif isinstance(c, ImageContent):
+            result.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{c.mime_type};base64,{c.data}"},
+            })
     return result if result else ""

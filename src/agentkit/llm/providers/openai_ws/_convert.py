@@ -5,7 +5,7 @@ from typing import Any
 
 from ...context import Context
 from ...tools import Tool
-from ...types import Role, TextContent, ToolCall, ToolResult
+from ...types import ImageContent, Role, TextContent, ToolCall, ToolResult
 
 __all__ = ["convert_context_to_input", "tool_to_responses_format", "convert_tool_choice"]
 
@@ -16,6 +16,7 @@ def convert_context_to_input(context: Context) -> list[dict[str, Any]]:
 
     for msg in context.messages:
         text_parts = [c for c in msg.content if isinstance(c, TextContent)]
+        image_parts = [c for c in msg.content if isinstance(c, ImageContent)]
         tool_calls = [c for c in msg.content if isinstance(c, ToolCall)]
         tool_results = [c for c in msg.content if isinstance(c, ToolResult)]
 
@@ -48,14 +49,33 @@ def convert_context_to_input(context: Context) -> list[dict[str, Any]]:
                 })
 
         elif msg.role == Role.USER:
-            if text_parts:
+            if text_parts or image_parts:
                 result.append({
                     "type": "message",
                     "role": "user",
-                    "content": "".join(c.text for c in text_parts),
+                    "content": convert_message_content(text_parts, image_parts),
                 })
 
     return result
+
+
+def convert_message_content(
+    text_parts: list[TextContent],
+    image_parts: list[ImageContent],
+) -> str | list[dict[str, str]]:
+    text = "".join(c.text for c in text_parts)
+    if not image_parts:
+        return text
+
+    content: list[dict[str, str]] = []
+    if text:
+        content.append({"type": "input_text", "text": text})
+    for image in image_parts:
+        content.append({
+            "type": "input_image",
+            "image_url": f"data:{image.mime_type};base64,{image.data}",
+        })
+    return content
 
 
 def tool_to_responses_format(t: Tool) -> dict[str, Any]:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -28,6 +27,7 @@ from ...types import (
     ToolCall,
     Usage,
 )
+from .._utils import client_with_retries, safe_json_loads
 from ..base import ModelOptions, Provider
 from ._convert import build_request
 from ._parse import map_stop_reason, parse_response
@@ -47,7 +47,8 @@ class AnthropicProvider(Provider):
 
     async def complete(self, context: Context, options: ModelOptions) -> Response:
         request = await apply_payload_hook(build_request(context, options), options)
-        response = await self._client.messages.create(**request, stream=False)
+        client = client_with_retries(self._client, options.max_retries)
+        response = await client.messages.create(**request, stream=False)
         await apply_response_hook(response, options)
         return parse_response(response)
 
@@ -67,7 +68,8 @@ class AnthropicProvider(Provider):
         model = options.model
 
         request = await apply_payload_hook(build_request(context, options), options)
-        async with self._client.messages.stream(**request) as stream:
+        client = client_with_retries(self._client, options.max_retries)
+        async with client.messages.stream(**request) as stream:
             yield StreamEvent.start(model)
 
             async for event in stream:
@@ -105,13 +107,11 @@ class AnthropicProvider(Provider):
                 elif event.type == "content_block_stop":
                     if event.index in tool_calls:
                         tc = tool_calls[event.index]
-                        try:
-                            arguments = (
-                                json.loads(tc["arguments_json"]) if tc["arguments_json"] else {}
-                            )
-                        except json.JSONDecodeError:
-                            arguments = {}
-                        yield StreamEvent.toolcall_end(tc["id"], tc["name"], arguments)
+                        yield StreamEvent.toolcall_end(
+                            tc["id"],
+                            tc["name"],
+                            safe_json_loads(tc["arguments_json"]),
+                        )
 
                 elif event.type == "message_delta":
                     if hasattr(event, "delta"):
@@ -131,11 +131,11 @@ class AnthropicProvider(Provider):
             if accumulated_text:
                 content.append(TextContent(text=accumulated_text))
             for tc in tool_calls.values():
-                try:
-                    arguments = json.loads(tc["arguments_json"]) if tc["arguments_json"] else {}
-                except json.JSONDecodeError:
-                    arguments = {}
-                content.append(ToolCall(id=tc["id"], name=tc["name"], arguments=arguments))
+                content.append(ToolCall(
+                    id=tc["id"],
+                    name=tc["name"],
+                    arguments=safe_json_loads(tc["arguments_json"]),
+                ))
 
             response = Response(
                 message=Message(role=Role.ASSISTANT, content=content),

@@ -212,6 +212,10 @@ response = await complete(
 )
 ```
 
+`timeout_ms` is expressed in milliseconds in AgentKit and converted to provider SDK
+seconds internally. Model-level defaults such as `max_tokens` and `headers` can be set
+on `Model`; request-level `RunOptions` override them.
+
 ### Request hooks and aborts
 
 ```python
@@ -381,7 +385,11 @@ uv sync --extra dev
 uv run --extra dev pytest
 uv run --extra dev --extra openai pytest
 uv run --extra dev ruff check .
+uv build
 ```
+
+See `CONTRIBUTING.md` for contributor guidelines and `SECURITY.md` for vulnerability
+reporting.
 
 ## Design principles
 

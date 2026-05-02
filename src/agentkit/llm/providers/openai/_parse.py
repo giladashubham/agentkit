@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from ...types import Content, Message, Response, Role, StopReason, TextContent, ToolCall, Usage
+from .._utils import safe_json_loads
 
 __all__ = ["parse_response", "map_stop_reason"]
 
@@ -21,7 +21,7 @@ def parse_response(response: Any, model: str) -> Response:
             content.append(ToolCall(
                 id=tc.id,
                 name=tc.function.name,
-                arguments=json.loads(tc.function.arguments) if tc.function.arguments else {},
+                arguments=safe_json_loads(tc.function.arguments),
             ))
 
     return Response(

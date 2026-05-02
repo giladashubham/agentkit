@@ -8,6 +8,7 @@ from ...providers.openai_ws._convert import (
     convert_tool_choice,
     tool_to_responses_format,
 )
+from .._utils import timeout_seconds
 from ..base import ModelOptions
 
 __all__ = ["build_request"]
@@ -37,7 +38,7 @@ def build_request(context: Context, options: ModelOptions) -> dict[str, Any]:
             request["tool_choice"] = tool_choice
 
     if options.timeout_ms is not None:
-        request["timeout"] = options.timeout_ms
+        request["timeout"] = timeout_seconds(options.timeout_ms)
 
     if options.headers:
         request["extra_headers"] = options.headers

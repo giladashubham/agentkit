@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from ...context import Context
-from ...types import Message, TextContent, ThinkingContent, ToolCall, ToolResult
+from ...types import ImageContent, Message, Role, TextContent, ThinkingContent, ToolCall, ToolResult
+from .._utils import timeout_seconds
 from ..base import ModelOptions
 
 __all__ = ["build_request", "convert_messages", "reasoning_budget"]
@@ -59,7 +60,7 @@ def build_request(context: Context, options: ModelOptions) -> dict[str, Any]:
         request["temperature"] = 1
 
     if options.timeout_ms is not None:
-        request["timeout"] = options.timeout_ms
+        request["timeout"] = timeout_seconds(options.timeout_ms)
 
     if options.headers:
         request["extra_headers"] = options.headers
@@ -75,6 +76,15 @@ def convert_messages(messages: list[Message]) -> list[dict[str, Any]]:
         for c in msg.content:
             if isinstance(c, TextContent):
                 content.append({"type": "text", "text": c.text})
+            elif isinstance(c, ImageContent):
+                content.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": c.mime_type,
+                        "data": c.data,
+                    },
+                })
             elif isinstance(c, ToolCall):
                 content.append({
                     "type": "tool_use",
@@ -88,18 +98,31 @@ def convert_messages(messages: list[Message]) -> list[dict[str, Any]]:
                     "tool_use_id": c.tool_call_id,
                     "content": c.content
                     if isinstance(c.content, str)
-                    else [
-                        {"type": "text", "text": tc.text}
-                        for tc in c.content
-                        if isinstance(tc, TextContent)
-                    ],
+                    else convert_tool_result_content(c.content),
                     "is_error": c.is_error,
                 })
             elif isinstance(c, ThinkingContent):
                 content.append({"type": "thinking", "thinking": c.text})
 
         result.append({
-            "role": msg.role.value,
+            "role": "user" if msg.role == Role.TOOL_RESULT else msg.role.value,
             "content": content,
         })
+    return result
+
+
+def convert_tool_result_content(content: list[TextContent | ImageContent]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for item in content:
+        if isinstance(item, TextContent):
+            result.append({"type": "text", "text": item.text})
+        elif isinstance(item, ImageContent):
+            result.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": item.mime_type,
+                    "data": item.data,
+                },
+            })
     return result

@@ -70,7 +70,7 @@ class Model:
 class RunOptions:
     """Runtime options for one model request."""
 
-    max_tokens: int = 4096
+    max_tokens: int | None = None
     temperature: float | None = None
     top_p: float | None = None
     stop_sequences: list[str] | None = None

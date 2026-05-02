@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...context import Context
-from ...types import Message, Role, TextContent, ToolCall, ToolResult
+from ...types import ImageContent, Message, Role, TextContent, ToolCall, ToolResult
 from ..base import ModelOptions
 
 __all__ = ["build_request", "convert_messages", "convert_tool", "convert_tool_choice"]
@@ -38,7 +38,8 @@ def build_request(context: Context, options: ModelOptions, types: Any) -> dict[s
     if options.reasoning:
         config["thinking_config"] = {"thinking_budget": options.reasoning_budget or -1}
 
-    config.update(options.extra.pop("config", {}) if "config" in options.extra else {})
+    extra = dict(options.extra)
+    config.update(extra.pop("config", {}))
 
     request: dict[str, Any] = {
         "model": options.model,
@@ -46,7 +47,7 @@ def build_request(context: Context, options: ModelOptions, types: Any) -> dict[s
     }
     if config:
         request["config"] = types.GenerateContentConfig(**config)
-    request.update(options.extra)
+    request.update(extra)
     return request
 
 
@@ -58,6 +59,13 @@ def convert_messages(messages: list[Message]) -> list[dict[str, Any]]:
         for content in msg.content:
             if isinstance(content, TextContent):
                 parts.append({"text": content.text})
+            elif isinstance(content, ImageContent):
+                parts.append({
+                    "inline_data": {
+                        "mime_type": content.mime_type,
+                        "data": content.data,
+                    }
+                })
             elif isinstance(content, ToolCall):
                 parts.append({
                     "function_call": {

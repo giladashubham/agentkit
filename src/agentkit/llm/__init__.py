@@ -1,5 +1,7 @@
 """Unified LLM provider abstraction with streaming and tool support."""
 
+from agentkit import __version__
+
 from .api import complete, get_provider, list_provider_apis, register_provider, stream
 from .context import Context
 from .model import Model, RunOptions
@@ -26,9 +28,8 @@ from .types import (
     UserMessage,
 )
 
-__version__ = "0.1.0"
-
 __all__ = [
+    "__version__",
     "Model",
     "RunOptions",
     "complete",

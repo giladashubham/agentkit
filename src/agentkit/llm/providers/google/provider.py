@@ -17,6 +17,7 @@ from ..._hooks import apply_payload_hook, apply_response_hook, check_abort
 from ...context import Context
 from ...streaming import StreamEvent, StreamResponse
 from ...types import Content, Message, Response, Role, StopReason, TextContent, Usage
+from .._utils import client_with_retries
 from ..base import ModelOptions, Provider
 from ._convert import build_request
 from ._parse import map_stop_reason, parse_response
@@ -53,7 +54,8 @@ class GoogleProvider(Provider):
 
     async def complete(self, context: Context, options: ModelOptions) -> Response:
         request = await apply_payload_hook(build_request(context, options, types), options)
-        response = await self._client.models.generate_content(**request)
+        client = client_with_retries(self._client, options.max_retries)
+        response = await client.models.generate_content(**request)
         await apply_response_hook(response, options)
         return parse_response(response, options.model)
 
@@ -66,7 +68,8 @@ class GoogleProvider(Provider):
         options: ModelOptions,
     ) -> AsyncIterator[StreamEvent]:
         request = await apply_payload_hook(build_request(context, options, types), options)
-        stream = await self._client.models.generate_content_stream(**request)
+        client = client_with_retries(self._client, options.max_retries)
+        stream = await client.models.generate_content_stream(**request)
 
         text_chunks: list[str] = []
         usage = Usage()

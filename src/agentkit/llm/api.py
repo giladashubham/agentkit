@@ -12,9 +12,11 @@ from .types import Response
 
 def _options(model: Model, context: Context, options: RunOptions | None) -> ModelOptions:
     options = options or RunOptions()
+    headers = {**(model.headers or {}), **(options.headers or {})} or None
+    max_tokens = options.max_tokens if options.max_tokens is not None else model.max_tokens or 4096
     return ModelOptions(
         model=model.id,
-        max_tokens=options.max_tokens,
+        max_tokens=max_tokens,
         temperature=options.temperature,
         top_p=options.top_p,
         stop_sequences=options.stop_sequences,
@@ -25,12 +27,12 @@ def _options(model: Model, context: Context, options: RunOptions | None) -> Mode
         transport=options.transport,
         timeout_ms=options.timeout_ms,
         max_retries=options.max_retries,
-        headers=options.headers,
+        headers=headers,
         abort_signal=options.abort_signal,
         on_payload=options.on_payload,
         on_response=options.on_response,
         model_ref=model,
-        extra=options.extra,
+        extra=dict(options.extra),
     )
 
 

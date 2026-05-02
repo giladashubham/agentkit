@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-from agentkit.llm import Context, Model, Response, StopReason, Usage, complete, list_provider_apis
+from agentkit.llm import (
+    Context,
+    Model,
+    Response,
+    RunOptions,
+    StopReason,
+    Usage,
+    complete,
+    list_provider_apis,
+)
 from agentkit.llm.providers.base import ModelOptions, Provider
 from agentkit.llm.providers.builtins import register_builtin_providers
 from agentkit.llm.providers.registry import clear_providers, register_provider
@@ -46,6 +55,62 @@ async def test_register_custom_provider_factory() -> None:
     assert response.text() == "hello"
     assert response.model == "dummy-model"
     assert list_provider_apis() == ["dummy"]
+
+
+async def test_model_defaults_flow_into_run_options() -> None:
+    clear_providers()
+    captured: list[ModelOptions] = []
+
+    class CapturingProvider(DummyProvider):
+        async def complete(self, context: Context, options: ModelOptions) -> Response:
+            captured.append(options)
+            return await super().complete(context, options)
+
+    register_provider("dummy", lambda model: CapturingProvider())
+
+    model = Model(
+        provider="dummy",
+        api="dummy",
+        id="dummy-model",
+        max_tokens=123,
+        headers={"x-model": "yes", "x-shared": "model"},
+    )
+    ctx = Context().add_user("hello")
+
+    await complete(model, ctx)
+
+    assert captured[0].max_tokens == 123
+    assert captured[0].headers == {"x-model": "yes", "x-shared": "model"}
+
+
+async def test_run_options_override_model_defaults() -> None:
+    clear_providers()
+    captured: list[ModelOptions] = []
+
+    class CapturingProvider(DummyProvider):
+        async def complete(self, context: Context, options: ModelOptions) -> Response:
+            captured.append(options)
+            return await super().complete(context, options)
+
+    register_provider("dummy", lambda model: CapturingProvider())
+
+    model = Model(
+        provider="dummy",
+        api="dummy",
+        id="dummy-model",
+        max_tokens=123,
+        headers={"x-model": "yes", "x-shared": "model"},
+    )
+    ctx = Context().add_user("hello")
+
+    await complete(
+        model,
+        ctx,
+        RunOptions(max_tokens=456, headers={"x-run": "yes", "x-shared": "run"}),
+    )
+
+    assert captured[0].max_tokens == 456
+    assert captured[0].headers == {"x-model": "yes", "x-run": "yes", "x-shared": "run"}
 
 
 def test_unknown_provider_lists_available_providers() -> None:

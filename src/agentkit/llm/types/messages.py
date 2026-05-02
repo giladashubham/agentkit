@@ -15,7 +15,6 @@ class Role(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
     TOOL_RESULT = "toolResult"
-    SYSTEM = "system"
 
 
 class Message(BaseModel):

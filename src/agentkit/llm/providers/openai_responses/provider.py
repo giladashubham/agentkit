@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncIterator
 
 try:
@@ -17,6 +16,7 @@ from ..._hooks import apply_payload_hook, apply_response_hook, check_abort
 from ...context import Context
 from ...streaming import StreamEvent, StreamResponse
 from ...types import Content, Message, Response, Role, StopReason, TextContent, ToolCall, Usage
+from .._utils import client_with_retries, safe_json_loads
 from ..base import ModelOptions, Provider
 from ._convert import build_request
 from ._parse import map_stop_reason, parse_response
@@ -45,7 +45,8 @@ class OpenAIResponsesProvider(Provider):
 
     async def complete(self, context: Context, options: ModelOptions) -> Response:
         request = await apply_payload_hook(build_request(context, options), options)
-        response = await self._client.responses.create(**request, stream=False)
+        client = client_with_retries(self._client, options.max_retries)
+        response = await client.responses.create(**request, stream=False)
         await apply_response_hook(response, options)
         return parse_response(response, options.model)
 
@@ -58,7 +59,8 @@ class OpenAIResponsesProvider(Provider):
         options: ModelOptions,
     ) -> AsyncIterator[StreamEvent]:
         request = await apply_payload_hook(build_request(context, options), options)
-        stream = await self._client.responses.create(**request, stream=True)
+        client = client_with_retries(self._client, options.max_retries)
+        stream = await client.responses.create(**request, stream=True)
 
         text_chunks: list[str] = []
         tool_acc: dict[str, dict[str, str]] = {}
@@ -111,14 +113,10 @@ class OpenAIResponsesProvider(Provider):
                 item_id = event.item_id
                 if item_id in tool_acc:
                     tc_info = tool_acc[item_id]
-                    try:
-                        arguments = json.loads(tc_info["args_buf"]) if tc_info["args_buf"] else {}
-                    except json.JSONDecodeError:
-                        arguments = {}
                     tc = ToolCall(
                         id=tc_info["call_id"],
                         name=tc_info["name"],
-                        arguments=arguments,
+                        arguments=safe_json_loads(tc_info["args_buf"]),
                     )
                     tool_calls_done.append(tc)
                     yield StreamEvent.toolcall_end(tc)

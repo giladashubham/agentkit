@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -18,6 +17,7 @@ from ..._hooks import apply_payload_hook, apply_response_hook, check_abort
 from ...context import Context
 from ...streaming import StreamEvent, StreamResponse
 from ...types import Content, Message, Response, Role, StopReason, TextContent, ToolCall, Usage
+from .._utils import client_with_retries, safe_json_loads
 from ..base import ModelOptions, Provider
 from ._convert import build_request
 from ._parse import map_stop_reason, parse_response
@@ -46,7 +46,8 @@ class OpenAIProvider(Provider):
 
     async def complete(self, context: Context, options: ModelOptions) -> Response:
         request = await apply_payload_hook(build_request(context, options), options)
-        response = await self._client.chat.completions.create(**request, stream=False)
+        client = client_with_retries(self._client, options.max_retries)
+        response = await client.chat.completions.create(**request, stream=False)
         await apply_response_hook(response, options)
         return parse_response(response, options.model)
 
@@ -65,7 +66,8 @@ class OpenAIProvider(Provider):
         model = options.model
 
         request = await apply_payload_hook(build_request(context, options), options)
-        stream = await self._client.chat.completions.create(
+        client = client_with_retries(self._client, options.max_retries)
+        stream = await client.chat.completions.create(
             **request,
             stream=True,
             stream_options={"include_usage": True},
@@ -118,21 +120,21 @@ class OpenAIProvider(Provider):
             yield StreamEvent.text_end(accumulated_text)
 
         for tc in tool_calls.values():
-            try:
-                arguments = json.loads(tc["arguments_json"]) if tc["arguments_json"] else {}
-            except json.JSONDecodeError:
-                arguments = {}
-            yield StreamEvent.toolcall_end(tc["id"], tc["name"], arguments)
+            yield StreamEvent.toolcall_end(
+                tc["id"],
+                tc["name"],
+                safe_json_loads(tc["arguments_json"]),
+            )
 
         content: list[Content] = []
         if accumulated_text:
             content.append(TextContent(text=accumulated_text))
         for tc in tool_calls.values():
-            try:
-                arguments = json.loads(tc["arguments_json"]) if tc["arguments_json"] else {}
-            except json.JSONDecodeError:
-                arguments = {}
-            content.append(ToolCall(id=tc["id"], name=tc["name"], arguments=arguments))
+            content.append(ToolCall(
+                id=tc["id"],
+                name=tc["name"],
+                arguments=safe_json_loads(tc["arguments_json"]),
+            ))
 
         response = Response(
             message=Message(role=Role.ASSISTANT, content=content),

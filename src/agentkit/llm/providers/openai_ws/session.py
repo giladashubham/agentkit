@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -20,6 +19,7 @@ from ...context import Context
 from ...streaming import StreamEvent, StreamResponse
 from ...tools import Tool
 from ...types import Content, Message, Response, Role, StopReason, TextContent, ToolCall, Usage
+from .._utils import safe_json_loads, timeout_seconds
 from ..base import ModelOptions
 from ._convert import convert_context_to_input, convert_tool_choice, tool_to_responses_format
 
@@ -88,7 +88,14 @@ class OpenAIWebSocketSession:
             tools=tools if tools is not None else self._options.tools,
             tool_choice=tool_choice if tool_choice is not None else self._options.tool_choice,
             transport="websocket",
-            extra=self._options.extra,
+            timeout_ms=self._options.timeout_ms,
+            max_retries=self._options.max_retries,
+            headers=self._options.headers,
+            abort_signal=self._options.abort_signal,
+            on_payload=self._options.on_payload,
+            on_response=self._options.on_response,
+            model_ref=self._options.model_ref,
+            extra=dict(self._options.extra),
         )
         system = context.system_prompt or self._system
         return StreamResponse(self._stream_one_turn(context, opts, system))
@@ -114,7 +121,7 @@ class OpenAIWebSocketSession:
             if options.tools:
                 create_kwargs["tools"] = [tool_to_responses_format(t) for t in options.tools]
             if options.timeout_ms is not None:
-                create_kwargs["timeout"] = options.timeout_ms
+                create_kwargs["timeout"] = timeout_seconds(options.timeout_ms)
             if options.headers:
                 create_kwargs["extra_headers"] = options.headers
             if options.tool_choice:
@@ -169,12 +176,7 @@ class OpenAIWebSocketSession:
                     item_id = event.item_id
                     if item_id in tool_acc:
                         tc_info = tool_acc[item_id]
-                        try:
-                            arguments = (
-                                json.loads(tc_info["args_buf"]) if tc_info["args_buf"] else {}
-                            )
-                        except json.JSONDecodeError:
-                            arguments = {}
+                        arguments = safe_json_loads(tc_info["args_buf"])
                         tc = ToolCall(
                             id=tc_info["call_id"],
                             name=tc_info["name"],
