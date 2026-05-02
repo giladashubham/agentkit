@@ -54,7 +54,60 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+## Supported providers and models
+
+AgentKit has a small built-in provider registry and a lightweight model registry. It does **not** try to ship a generated database of every model from every vendor.
+
+### Built-in API providers
+
+| API | Provider package | Status | Install extra |
+|---|---|---|---|
+| `anthropic-messages` | Anthropic | Implemented | `agentkit[anthropic]` |
+| `openai-completions` | OpenAI Chat Completions | Implemented | `agentkit[openai]` |
+| `openai-responses` | OpenAI Responses API | Implemented | `agentkit[openai]` |
+| OpenAI Responses WebSocket | OpenAI persistent session API | Implemented via `openai_ws` | `agentkit[openai]` |
+| `google-generative-ai` | Google Gemini Developer API | Implemented | `agentkit[google]` |
+| `google-vertex` | Google Gemini on Vertex AI | Implemented | `agentkit[google]` |
+
+### Built-in model registry
+
+| Provider | Model IDs |
+|---|---|
+| `anthropic` | `claude-sonnet-4-20250514` |
+| `openai` | `gpt-4o-mini`, `gpt-4o` |
+| `deepseek` | `deepseek-chat` |
+| `groq` | `llama-3.3-70b-versatile` |
+| `openrouter` | `openai/gpt-4o-mini` |
+| `xai` | `grok-4` |
+| `fireworks` | `accounts/fireworks/models/llama-v3p1-70b-instruct` |
+| `together` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` |
+| `ollama` | `llama3.2` |
+| `google` | `gemini-2.5-flash`, `gemini-2.5-pro` |
+| `google-vertex` | `gemini-2.5-flash`, `gemini-2.5-pro` |
+
+Use `get_model(provider, model_id)` for built-ins, or construct `Model(...)` directly for any model ID supported by the underlying provider.
+
+### OpenAI-compatible preset providers
+
+These providers reuse the OpenAI-compatible implementation with preset `base_url` values:
+
+| Provider | Preset base URL |
+|---|---|
+| `deepseek` | `https://api.deepseek.com` |
+| `groq` | `https://api.groq.com/openai/v1` |
+| `openrouter` | `https://openrouter.ai/api/v1` |
+| `xai` | `https://api.x.ai/v1` |
+| `fireworks` | `https://api.fireworks.ai/inference/v1` |
+| `together` | `https://api.together.xyz/v1` |
+| `ollama` | `http://localhost:11434/v1` |
+| `perplexity` | `https://api.perplexity.ai` |
+| `cerebras` | `https://api.cerebras.ai/v1` |
+| `sambanova` | `https://api.sambanova.ai/v1` |
+| `nebius` | `https://api.studio.nebius.ai/v1` |
+
 ## OpenAI
+
+Chat Completions:
 
 ```python
 from agentkit.llm import Context, Model, complete
@@ -65,6 +118,63 @@ context.add_user("Say hello in three words.")
 
 response = await complete(model, context)
 print(response.text())
+```
+
+Responses API:
+
+```python
+model = Model(provider="openai", api="openai-responses", id="gpt-4o-mini")
+response = await complete(model, context)
+```
+
+## Google Gemini
+
+Gemini Developer API:
+
+```python
+from agentkit.llm import Context, Model, complete
+
+model = Model(provider="google", api="google-generative-ai", id="gemini-2.5-flash")
+context = Context()
+context.add_user("Explain embeddings in one sentence.")
+
+response = await complete(model, context)
+print(response.text())
+```
+
+Vertex AI:
+
+```python
+model = Model(
+    provider="google-vertex",
+    api="google-vertex",
+    id="gemini-2.5-flash",
+    config={"project": "my-gcp-project", "location": "us-central1"},
+)
+```
+
+## OpenAI-compatible providers
+
+OpenAI-compatible providers reuse the OpenAI implementation with preset `base_url` values:
+
+```python
+from agentkit.llm import openai_compatible_model
+
+model = openai_compatible_model("groq", "llama-3.3-70b-versatile")
+model = openai_compatible_model("deepseek", "deepseek-chat")
+model = openai_compatible_model("openrouter", "openai/gpt-4o-mini")
+model = openai_compatible_model("ollama", "llama3.2")
+```
+
+Built-in presets include DeepSeek, Groq, OpenRouter, xAI, Fireworks, Together, Ollama,
+Perplexity, Cerebras, SambaNova, and Nebius. You can also pass a custom `base_url`:
+
+```python
+model = openai_compatible_model(
+    "custom-provider",
+    "custom-model",
+    base_url="https://example.com/v1",
+)
 ```
 
 ## Model registry
@@ -242,14 +352,27 @@ src/agentkit/
 │   ├── api.py
 │   ├── context.py
 │   ├── model.py
-│   ├── registry.py
+│   ├── models/
 │   ├── streaming.py
 │   ├── tools.py
 │   ├── types/       # Pydantic content, message, and response models
-│   └── providers/   # provider integrations
+│   └── providers/   # provider registry, built-ins, and integrations
 ├── agent/           # future agent loop namespace
 └── exceptions.py
 ```
+
+## Provider extension boundary
+
+The top-level `agentkit.llm` package exposes the runtime API. Provider implementation classes live under their own provider packages:
+
+```python
+from agentkit.llm.providers import Provider, ModelOptions
+from agentkit.llm.providers.openai import OpenAIProvider
+from agentkit.llm.providers.google import GoogleProvider
+from agentkit.llm.providers.openai_ws import OpenAIWebSocketSession
+```
+
+Built-in provider wiring lives in `agentkit.llm.providers.builtins`; the generic provider plugin registry lives in `agentkit.llm.providers.registry`. Built-in model entries live in `agentkit.llm.models.builtins`; the model lookup registry lives in `agentkit.llm.models.registry`.
 
 ## Development
 
