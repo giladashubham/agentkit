@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ..env import get_env_api_key
 from ..model import Model
 from ..models.presets import with_openai_compatible_base_url
 from .base import Provider
@@ -8,10 +9,14 @@ from .registry import register_provider
 __all__ = ["register_builtin_providers"]
 
 
+def _api_key_for_model(model: Model) -> str | None:
+    return model.api_key or get_env_api_key(model.provider)
+
+
 def _create_anthropic(model: Model) -> Provider:
     from .anthropic import AnthropicProvider
 
-    return AnthropicProvider(api_key=model.api_key, base_url=model.base_url)
+    return AnthropicProvider(api_key=_api_key_for_model(model), base_url=model.base_url)
 
 
 def _create_openai(model: Model) -> Provider:
@@ -19,7 +24,7 @@ def _create_openai(model: Model) -> Provider:
 
     model = with_openai_compatible_base_url(model)
     return OpenAIProvider(
-        api_key=model.api_key,
+        api_key=_api_key_for_model(model),
         base_url=model.base_url,
         **model.config,
     )
@@ -30,7 +35,7 @@ def _create_openai_responses(model: Model) -> Provider:
 
     model = with_openai_compatible_base_url(model)
     return OpenAIResponsesProvider(
-        api_key=model.api_key,
+        api_key=_api_key_for_model(model),
         base_url=model.base_url,
         **model.config,
     )
@@ -40,7 +45,7 @@ def _create_google(model: Model) -> Provider:
     from .google import GoogleProvider
 
     return GoogleProvider(
-        api_key=model.api_key,
+        api_key=_api_key_for_model(model),
         base_url=model.base_url,
         vertexai=model.api == "google-vertex",
         **model.config,
