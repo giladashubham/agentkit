@@ -80,6 +80,7 @@ class OpenAIProvider(Provider):
             if chunk.usage:
                 usage.input = chunk.usage.prompt_tokens
                 usage.output = chunk.usage.completion_tokens
+                usage.cache_read = getattr(getattr(chunk.usage, "prompt_tokens_details", None), "cached_tokens", 0) or 0
 
             if not chunk.choices:
                 continue
