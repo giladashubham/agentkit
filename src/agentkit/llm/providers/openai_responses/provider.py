@@ -113,13 +113,14 @@ class OpenAIResponsesProvider(Provider):
                 item_id = event.item_id
                 if item_id in tool_acc:
                     tc_info = tool_acc[item_id]
+                    args = parse_json_args(tc_info["args_buf"])
                     tc = ToolCall(
                         id=tc_info["call_id"],
                         name=tc_info["name"],
-                        arguments=parse_json_args(tc_info["args_buf"]),
+                        arguments=args,
                     )
                     tool_calls_done.append(tc)
-                    yield StreamEvent.toolcall_end(tc)
+                    yield StreamEvent.toolcall_end(tc_info["call_id"], tc_info["name"], args)
 
             elif etype == "response.completed":
                 response = event.response

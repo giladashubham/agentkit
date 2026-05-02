@@ -45,6 +45,6 @@ def map_stop_reason(reason: str | None) -> StopReason:
         "stop": StopReason.STOP,
         "tool_calls": StopReason.TOOL_USE,
         "length": StopReason.LENGTH,
-        "content_filter": StopReason.STOP,
+        "content_filter": StopReason.ERROR,
     }
     return mapping.get(reason, StopReason.STOP)
