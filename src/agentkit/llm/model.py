@@ -14,6 +14,7 @@ __all__ = [
     "AsyncPayloadHook",
     "ResponseHook",
     "AsyncResponseHook",
+    "ModelCost",
     "Model",
     "RunOptions",
 ]
@@ -50,8 +51,18 @@ AsyncResponseHook = Callable[[Any, Any], Awaitable[None]]
 
 
 @dataclass(frozen=True, slots=True)
+class ModelCost:
+    """Model pricing in USD per 1M tokens."""
+
+    input: float = 0.0
+    output: float = 0.0
+    cache_read: float = 0.0
+    cache_write: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
 class Model:
-    """Model identity and provider/API configuration."""
+    """Model identity, provider/API configuration, and static metadata."""
 
     id: str
     provider: ProviderName | str
@@ -63,6 +74,8 @@ class Model:
     context_window: int | None = None
     max_tokens: int | None = None
     input_types: tuple[Literal["text", "image"], ...] = ("text",)
+    reasoning: bool = False
+    cost: ModelCost = field(default_factory=ModelCost)
     config: dict[str, Any] = field(default_factory=dict)
 
 

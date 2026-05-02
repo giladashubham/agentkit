@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Literal
 
-from ..model import Model
+from ..model import Model, ModelCost
 
 __all__ = ["openai_compatible_model", "OPENAI_COMPATIBLE_BASE_URLS"]
 
@@ -33,6 +33,9 @@ def openai_compatible_model(
     headers: dict[str, str] | None = None,
     context_window: int | None = None,
     max_tokens: int | None = None,
+    input_types: tuple[Literal["text", "image"], ...] = ("text",),
+    reasoning: bool = False,
+    cost: ModelCost | None = None,
     config: dict | None = None,
 ) -> Model:
     """Create a Model for an OpenAI-compatible provider preset.
@@ -57,6 +60,9 @@ def openai_compatible_model(
         headers=headers,
         context_window=context_window,
         max_tokens=max_tokens,
+        input_types=input_types,
+        reasoning=reasoning,
+        cost=cost or ModelCost(),
         config=config or {},
     )
 

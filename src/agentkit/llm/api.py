@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from ._metadata import attach_response_metadata
 from .context import Context
 from .model import Model, RunOptions
 from .models.builtins import register_builtin_models
+from .models.costs import calculate_cost
 from .providers.base import ModelOptions
 from .providers.builtins import register_builtin_providers
 from .providers.registry import get_provider, list_provider_apis, register_provider
@@ -39,7 +41,9 @@ def _options(model: Model, context: Context, options: RunOptions | None) -> Mode
 async def complete(model: Model, context: Context, options: RunOptions | None = None) -> Response:
     """Run one non-streaming model request."""
     provider = get_provider(model)
-    return await provider.complete(context, _options(model, context, options))
+    response = await provider.complete(context, _options(model, context, options))
+    calculate_cost(model, response.usage)
+    return attach_response_metadata(model, response)
 
 
 def stream(model: Model, context: Context, options: RunOptions | None = None) -> StreamResponse:
