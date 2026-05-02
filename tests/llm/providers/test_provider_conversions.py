@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from agentkit.llm import Context, ImageContent, Message, Role, TextContent, ToolCall, ToolResult
+from agentkit.llm import Context, ImageContent, Message, Role, TextContent, ThinkingContent, ToolCall, ToolResult
+from agentkit.llm.providers.anthropic._convert import build_request as build_anthropic_request
 from agentkit.llm.providers.anthropic._convert import convert_messages as convert_anthropic_messages
 from agentkit.llm.providers.base import ModelOptions
 from agentkit.llm.providers.google._convert import build_request as build_google_request
@@ -82,3 +83,81 @@ def test_anthropic_preserves_assistant_tool_calls() -> None:
 
     assert converted[0]["role"] == "assistant"
     assert converted[0]["content"][0]["type"] == "tool_use"
+
+
+def test_anthropic_thinking_signature_is_included_in_conversion() -> None:
+    msg = Message(
+        role=Role.ASSISTANT,
+        content=[ThinkingContent(text="Let me think.", signature="sig123")],
+    )
+
+    converted = convert_anthropic_messages([msg])
+
+    block = converted[0]["content"][0]
+    assert block["type"] == "thinking"
+    assert block["thinking"] == "Let me think."
+    assert block["signature"] == "sig123"
+
+
+def test_anthropic_thinking_without_signature_omits_field() -> None:
+    msg = Message(
+        role=Role.ASSISTANT,
+        content=[ThinkingContent(text="Thinking.", signature=None)],
+    )
+
+    converted = convert_anthropic_messages([msg])
+
+    block = converted[0]["content"][0]
+    assert block["type"] == "thinking"
+    assert block["thinking"] == "Thinking."
+    assert "signature" not in block
+
+
+def test_anthropic_redacted_thinking_converts_correctly() -> None:
+    msg = Message(
+        role=Role.ASSISTANT,
+        content=[ThinkingContent(text="", signature="opaque-data", redacted=True)],
+    )
+
+    converted = convert_anthropic_messages([msg])
+
+    block = converted[0]["content"][0]
+    assert block["type"] == "redacted_thinking"
+    assert block["data"] == "opaque-data"
+
+
+def test_anthropic_cache_control_on_system_prompt() -> None:
+    ctx = Context(system_prompt="You are helpful.")
+    options = ModelOptions(model="claude-3-5-sonnet", cache_control="ephemeral")
+
+    request = build_anthropic_request(ctx, options)
+
+    assert isinstance(request["system"], list)
+    assert request["system"][0]["type"] == "text"
+    assert request["system"][0]["text"] == "You are helpful."
+    assert request["system"][0]["cache_control"] == {"type": "ephemeral"}
+
+
+def test_anthropic_no_cache_control_by_default() -> None:
+    ctx = Context(system_prompt="You are helpful.")
+    options = ModelOptions(model="claude-3-5-sonnet")
+
+    request = build_anthropic_request(ctx, options)
+
+    assert request["system"] == "You are helpful."
+
+
+def test_anthropic_cache_control_on_last_tool() -> None:
+    from agentkit.llm import Tool
+
+    tools = [
+        Tool(name="search", description="Search", parameters={"type": "object", "properties": {}}),
+        Tool(name="calc", description="Calculate", parameters={"type": "object", "properties": {}}),
+    ]
+    ctx = Context(tools=tools)
+    options = ModelOptions(model="claude-3-5-sonnet", tools=tools, cache_control="ephemeral")
+
+    request = build_anthropic_request(ctx, options)
+
+    assert "cache_control" not in request["tools"][0]
+    assert request["tools"][-1]["cache_control"] == {"type": "ephemeral"}

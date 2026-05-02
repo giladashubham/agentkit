@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-__all__ = ["client_with_retries", "safe_json_loads", "timeout_seconds"]
+__all__ = ["client_with_retries", "parse_json_args", "timeout_seconds"]
 
 
 def timeout_seconds(timeout_ms: int | None) -> float | None:
@@ -11,14 +11,11 @@ def timeout_seconds(timeout_ms: int | None) -> float | None:
     return None if timeout_ms is None else timeout_ms / 1000
 
 
-def safe_json_loads(value: str | None) -> dict[str, Any]:
-    """Parse provider tool-call arguments, returning an empty object on invalid JSON."""
+def parse_json_args(value: str | None) -> dict[str, Any]:
+    """Parse provider tool-call arguments. Returns {} for empty input, raises on malformed JSON."""
     if not value:
         return {}
-    try:
-        parsed = json.loads(value)
-    except json.JSONDecodeError:
-        return {}
+    parsed = json.loads(value)
     return parsed if isinstance(parsed, dict) else {}
 
 

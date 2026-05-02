@@ -17,7 +17,7 @@ from ..._hooks import apply_payload_hook, apply_response_hook, check_abort
 from ...context import Context
 from ...streaming import StreamEvent, StreamResponse
 from ...types import Content, Message, Response, Role, StopReason, TextContent, ToolCall, Usage
-from .._utils import client_with_retries, safe_json_loads
+from .._utils import client_with_retries, parse_json_args
 from ..base import ModelOptions, Provider
 from ._convert import build_request
 from ._parse import map_stop_reason, parse_response
@@ -123,7 +123,7 @@ class OpenAIProvider(Provider):
             yield StreamEvent.toolcall_end(
                 tc["id"],
                 tc["name"],
-                safe_json_loads(tc["arguments_json"]),
+                parse_json_args(tc["arguments_json"]),
             )
 
         content: list[Content] = []
@@ -133,7 +133,7 @@ class OpenAIProvider(Provider):
             content.append(ToolCall(
                 id=tc["id"],
                 name=tc["name"],
-                arguments=safe_json_loads(tc["arguments_json"]),
+                arguments=parse_json_args(tc["arguments_json"]),
             ))
 
         response = Response(

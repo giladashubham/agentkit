@@ -24,7 +24,16 @@ def parse_response(response: Any) -> Response:
         if block.type == "text":
             content.append(TextContent(text=block.text))
         elif block.type == "thinking":
-            content.append(ThinkingContent(text=block.thinking))
+            content.append(ThinkingContent(
+                text=block.thinking,
+                signature=getattr(block, "signature", None),
+            ))
+        elif block.type == "redacted_thinking":
+            content.append(ThinkingContent(
+                text="",
+                signature=getattr(block, "data", None),
+                redacted=True,
+            ))
         elif block.type == "tool_use":
             content.append(ToolCall(
                 id=block.id,

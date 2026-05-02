@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...types import Content, Message, Response, Role, StopReason, TextContent, ToolCall, Usage
-from .._utils import safe_json_loads
+from .._utils import parse_json_args
 
 __all__ = ["parse_response", "map_stop_reason"]
 
@@ -21,7 +21,7 @@ def parse_response(response: Any, model: str) -> Response:
             content.append(ToolCall(
                 id=tc.id,
                 name=tc.function.name,
-                arguments=safe_json_loads(tc.function.arguments),
+                arguments=parse_json_args(tc.function.arguments),
             ))
 
     return Response(

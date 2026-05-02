@@ -41,6 +41,8 @@ class ThinkingContent(BaseModel):
     model_config = ConfigDict(frozen=True)
     type: Literal["thinking"] = "thinking"
     text: str
+    signature: str | None = None
+    redacted: bool = False
 
 
 Content = Annotated[

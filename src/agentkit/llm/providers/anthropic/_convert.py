@@ -28,7 +28,12 @@ def build_request(context: Context, options: ModelOptions) -> dict[str, Any]:
     }
 
     if context.system_prompt:
-        request["system"] = context.system_prompt
+        if options.cache_control == "ephemeral":
+            request["system"] = [
+                {"type": "text", "text": context.system_prompt, "cache_control": {"type": "ephemeral"}}
+            ]
+        else:
+            request["system"] = context.system_prompt
 
     if options.temperature is not None:
         request["temperature"] = options.temperature
@@ -40,7 +45,10 @@ def build_request(context: Context, options: ModelOptions) -> dict[str, Any]:
         request["stop_sequences"] = options.stop_sequences
 
     if options.tools:
-        request["tools"] = [t.to_anthropic() for t in options.tools]
+        tools = [t.to_anthropic() for t in options.tools]
+        if options.cache_control == "ephemeral":
+            tools[-1] = {**tools[-1], "cache_control": {"type": "ephemeral"}}
+        request["tools"] = tools
 
     if options.tool_choice:
         if options.tool_choice == "auto":
@@ -102,7 +110,13 @@ def convert_messages(messages: list[Message]) -> list[dict[str, Any]]:
                     "is_error": c.is_error,
                 })
             elif isinstance(c, ThinkingContent):
-                content.append({"type": "thinking", "thinking": c.text})
+                if c.redacted:
+                    content.append({"type": "redacted_thinking", "data": c.signature or ""})
+                else:
+                    block: dict[str, Any] = {"type": "thinking", "thinking": c.text}
+                    if c.signature:
+                        block["signature"] = c.signature
+                    content.append(block)
 
         result.append({
             "role": "user" if msg.role == Role.TOOL_RESULT else msg.role.value,

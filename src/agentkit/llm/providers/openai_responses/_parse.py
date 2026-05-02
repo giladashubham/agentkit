@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...types import Content, Message, Response, Role, StopReason, TextContent, ToolCall, Usage
-from .._utils import safe_json_loads
+from .._utils import parse_json_args
 
 __all__ = ["parse_response", "map_stop_reason", "response_text"]
 
@@ -34,7 +34,7 @@ def parse_response(response: Any, model: str | None = None) -> Response:
             content.append(ToolCall(
                 id=getattr(item, "call_id", None) or getattr(item, "id", ""),
                 name=getattr(item, "name", ""),
-                arguments=safe_json_loads(raw_arguments),
+                arguments=parse_json_args(raw_arguments),
             ))
 
     usage_data = getattr(response, "usage", None)

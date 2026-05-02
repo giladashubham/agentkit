@@ -33,6 +33,7 @@ class ModelOptions:
     abort_signal: asyncio.Event | None = None
     on_payload: PayloadHook | AsyncPayloadHook | None = None
     on_response: ResponseHook | AsyncResponseHook | None = None
+    cache_control: Literal["none", "ephemeral"] = "none"
     model_ref: Any = None
     extra: dict[str, Any] = field(default_factory=dict)
 

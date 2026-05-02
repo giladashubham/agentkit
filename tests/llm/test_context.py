@@ -54,6 +54,24 @@ def test_context_copy_is_independent() -> None:
     assert [m.text() for m in copied.messages] == ["hello", "hi"]
 
 
+def test_context_round_trip_preserves_thinking_signature() -> None:
+    ctx = Context(messages=[
+        Message(
+            role=Role.ASSISTANT,
+            content=[ThinkingContent(text="reasoning", signature="sig-abc")],
+        )
+    ])
+
+    data = ctx.to_dict()
+    restored = Context.from_dict(data)
+
+    thinking = restored.messages[0].content[0]
+    assert isinstance(thinking, ThinkingContent)
+    assert thinking.text == "reasoning"
+    assert thinking.signature == "sig-abc"
+    assert thinking.redacted is False
+
+
 def test_context_clear_removes_messages_only() -> None:
     ctx = Context(system_prompt="system", metadata={"key": "value"}).add_user("hello")
 

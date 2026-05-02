@@ -33,6 +33,7 @@ def _options(model: Model, context: Context, options: RunOptions | None) -> Mode
         abort_signal=options.abort_signal,
         on_payload=options.on_payload,
         on_response=options.on_response,
+        cache_control=options.cache_control,
         model_ref=model,
         extra=dict(options.extra),
     )

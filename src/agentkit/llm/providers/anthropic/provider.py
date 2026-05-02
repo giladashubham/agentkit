@@ -27,7 +27,7 @@ from ...types import (
     ToolCall,
     Usage,
 )
-from .._utils import client_with_retries, safe_json_loads
+from .._utils import client_with_retries, parse_json_args
 from ..base import ModelOptions, Provider
 from ._convert import build_request
 from ._parse import map_stop_reason, parse_response
@@ -62,6 +62,8 @@ class AnthropicProvider(Provider):
     ) -> AsyncIterator[StreamEvent]:
         accumulated_text = ""
         accumulated_thinking = ""
+        accumulated_thinking_signature = ""
+        redacted_thinking_blocks: dict[int, str] = {}
         tool_calls: dict[int, dict[str, Any]] = {}
         usage = Usage()
         stop_reason = StopReason.STOP
@@ -87,6 +89,8 @@ class AnthropicProvider(Provider):
                             "arguments_json": "",
                         }
                         yield StreamEvent.toolcall_start(block.id, block.name)
+                    elif block.type == "redacted_thinking":
+                        redacted_thinking_blocks[event.index] = getattr(block, "data", "")
 
                 elif event.type == "content_block_delta":
                     delta = event.delta
@@ -96,6 +100,8 @@ class AnthropicProvider(Provider):
                     elif delta.type == "thinking_delta":
                         accumulated_thinking += delta.thinking
                         yield StreamEvent.thinking_delta(delta.thinking)
+                    elif delta.type == "signature_delta":
+                        accumulated_thinking_signature += delta.signature
                     elif delta.type == "input_json_delta":
                         if event.index in tool_calls:
                             tool_calls[event.index]["arguments_json"] += delta.partial_json
@@ -110,7 +116,7 @@ class AnthropicProvider(Provider):
                         yield StreamEvent.toolcall_end(
                             tc["id"],
                             tc["name"],
-                            safe_json_loads(tc["arguments_json"]),
+                            parse_json_args(tc["arguments_json"]),
                         )
 
                 elif event.type == "message_delta":
@@ -126,15 +132,20 @@ class AnthropicProvider(Provider):
                 yield StreamEvent.thinking_end(accumulated_thinking)
 
             content: list[Content] = []
-            if accumulated_thinking:
-                content.append(ThinkingContent(text=accumulated_thinking))
+            if accumulated_thinking or accumulated_thinking_signature:
+                content.append(ThinkingContent(
+                    text=accumulated_thinking,
+                    signature=accumulated_thinking_signature or None,
+                ))
+            for data in redacted_thinking_blocks.values():
+                content.append(ThinkingContent(text="", signature=data, redacted=True))
             if accumulated_text:
                 content.append(TextContent(text=accumulated_text))
             for tc in tool_calls.values():
                 content.append(ToolCall(
                     id=tc["id"],
                     name=tc["name"],
-                    arguments=safe_json_loads(tc["arguments_json"]),
+                    arguments=parse_json_args(tc["arguments_json"]),
                 ))
 
             response = Response(

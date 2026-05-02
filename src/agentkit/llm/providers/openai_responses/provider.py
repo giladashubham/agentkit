@@ -16,7 +16,7 @@ from ..._hooks import apply_payload_hook, apply_response_hook, check_abort
 from ...context import Context
 from ...streaming import StreamEvent, StreamResponse
 from ...types import Content, Message, Response, Role, StopReason, TextContent, ToolCall, Usage
-from .._utils import client_with_retries, safe_json_loads
+from .._utils import client_with_retries, parse_json_args
 from ..base import ModelOptions, Provider
 from ._convert import build_request
 from ._parse import map_stop_reason, parse_response
@@ -116,7 +116,7 @@ class OpenAIResponsesProvider(Provider):
                     tc = ToolCall(
                         id=tc_info["call_id"],
                         name=tc_info["name"],
-                        arguments=safe_json_loads(tc_info["args_buf"]),
+                        arguments=parse_json_args(tc_info["args_buf"]),
                     )
                     tool_calls_done.append(tc)
                     yield StreamEvent.toolcall_end(tc)

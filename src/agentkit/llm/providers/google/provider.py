@@ -16,7 +16,7 @@ except ImportError as exc:  # pragma: no cover - depends on optional extra
 from ..._hooks import apply_payload_hook, apply_response_hook, check_abort
 from ...context import Context
 from ...streaming import StreamEvent, StreamResponse
-from ...types import Content, Message, Response, Role, StopReason, TextContent, Usage
+from ...types import Content, Message, Response, Role, StopReason, TextContent, ToolCall, Usage
 from .._utils import client_with_retries
 from ..base import ModelOptions, Provider
 from ._convert import build_request
@@ -72,6 +72,8 @@ class GoogleProvider(Provider):
         stream = await client.models.generate_content_stream(**request)
 
         text_chunks: list[str] = []
+        tool_calls_done: list[ToolCall] = []
+        seen_tool_call_ids: set[str] = set()
         usage = Usage()
         stop_reason = StopReason.STOP
 
@@ -83,6 +85,19 @@ class GoogleProvider(Provider):
             if text:
                 text_chunks.append(text)
                 yield StreamEvent.text_delta(text)
+
+            for call in getattr(chunk, "function_calls", None) or []:
+                call_id = getattr(call, "id", None) or getattr(call, "call_id", "") or call.name
+                if call_id not in seen_tool_call_ids:
+                    seen_tool_call_ids.add(call_id)
+                    tc = ToolCall(
+                        id=call_id,
+                        name=getattr(call, "name", ""),
+                        arguments=dict(getattr(call, "args", {}) or {}),
+                    )
+                    tool_calls_done.append(tc)
+                    yield StreamEvent.toolcall_start(tc.id, tc.name)
+                    yield StreamEvent.toolcall_end(tc)
 
             usage_metadata = getattr(chunk, "usage_metadata", None)
             if usage_metadata:
@@ -97,7 +112,11 @@ class GoogleProvider(Provider):
         if text:
             yield StreamEvent.text_end(text)
 
-        content: list[Content] = [TextContent(text=text)] if text else []
+        content: list[Content] = []
+        if text:
+            content.append(TextContent(text=text))
+        content.extend(tool_calls_done)
+
         response = Response(
             message=Message(role=Role.ASSISTANT, content=content),
             stop_reason=stop_reason,

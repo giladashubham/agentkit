@@ -19,7 +19,7 @@ from ...context import Context
 from ...streaming import StreamEvent, StreamResponse
 from ...tools import Tool
 from ...types import Content, Message, Response, Role, StopReason, TextContent, ToolCall, Usage
-from .._utils import safe_json_loads, timeout_seconds
+from .._utils import parse_json_args, timeout_seconds
 from ..base import ModelOptions
 from ._convert import convert_context_to_input, convert_tool_choice, tool_to_responses_format
 
@@ -179,7 +179,7 @@ class OpenAIWebSocketSession:
                     item_id = event.item_id
                     if item_id in tool_acc:
                         tc_info = tool_acc[item_id]
-                        arguments = safe_json_loads(tc_info["args_buf"])
+                        arguments = parse_json_args(tc_info["args_buf"])
                         tc = ToolCall(
                             id=tc_info["call_id"],
                             name=tc_info["name"],
