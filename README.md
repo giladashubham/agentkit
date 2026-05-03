@@ -377,6 +377,41 @@ for call in response.tool_calls():
 raw arguments. Tools created from raw JSON schema without a Pydantic model return
 arguments unchanged from `validate_tool_arguments()`.
 
+## Agent loop
+
+The `agentkit.agent` package provides a small stateful agent loop inspired by Pi's
+agent core. It streams assistant messages, executes tool calls, emits lifecycle
+events, preserves conversation state across runs, and supports steering/follow-up
+queues.
+
+```python
+from agentkit.agent import Agent, agent_tool
+from agentkit.llm import Model
+
+
+@agent_tool
+def echo(value: str) -> str:
+    """Echo a value."""
+    return value
+
+
+agent = Agent(
+    Model(provider="anthropic", api="anthropic-messages", id="claude-sonnet-4-20250514"),
+    system_prompt="You are helpful.",
+    tools=[echo],
+)
+await agent.run("Say hi, then echo 'done'.")
+
+# If you restore or edit state so it ends in a user/toolResult message,
+# continue from that existing transcript without adding a new prompt:
+# await agent.continue_()
+```
+
+`AgentConfig` includes hooks for context transformation, tool preflight/postprocessing,
+graceful stop decisions, run options, queue draining mode, and sequential/parallel tool
+execution. Use `Agent.subscribe(...)` to observe events such as `turn_start`,
+`message_update`, `tool_execution_end`, and `agent_end`.
+
 ## Reasoning
 
 Reasoning uses provider-independent levels:
@@ -453,7 +488,7 @@ src/agentkit/
 │   ├── tools.py
 │   ├── types/       # Pydantic content, message, and response models
 │   └── providers/   # provider registry, built-ins, and integrations
-├── agent/           # future agent loop namespace
+├── agent/           # stateful agent loop, tool execution, and events
 └── exceptions.py
 ```
 
@@ -503,4 +538,5 @@ reporting.
 
 ## Status
 
-AgentKit is early-stage. The LLM layer exists. The `agentkit.agent` namespace exists but the agent loop is not implemented yet.
+AgentKit is early-stage. The LLM layer and a small Pi-inspired `agentkit.agent` loop
+are implemented, with APIs still expected to evolve.

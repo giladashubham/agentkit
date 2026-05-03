@@ -30,8 +30,16 @@ def parse_response(response: Any, model: str) -> Response:
         usage=Usage(
             input=response.usage.prompt_tokens if response.usage else 0,
             output=response.usage.completion_tokens if response.usage else 0,
-            cache_read=getattr(getattr(response.usage, "prompt_tokens_details", None), "cached_tokens", 0) or 0
-            if response.usage else 0,
+            cache_read=(
+                getattr(
+                    getattr(response.usage, "prompt_tokens_details", None),
+                    "cached_tokens",
+                    0,
+                )
+                or 0
+            )
+            if response.usage
+            else 0,
         ),
         model=model,
         raw=response,

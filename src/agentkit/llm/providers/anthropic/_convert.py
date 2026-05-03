@@ -30,7 +30,11 @@ def build_request(context: Context, options: ModelOptions) -> dict[str, Any]:
     if context.system_prompt:
         if options.cache_control == "ephemeral":
             request["system"] = [
-                {"type": "text", "text": context.system_prompt, "cache_control": {"type": "ephemeral"}}
+                {
+                    "type": "text",
+                    "text": context.system_prompt,
+                    "cache_control": {"type": "ephemeral"},
+                }
             ]
         else:
             request["system"] = context.system_prompt
